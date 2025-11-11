@@ -67,19 +67,48 @@ export async function HomeView({ mainRoot }) {
   
   async function updatePushButton() {
     const btn = toolbar.querySelector('#push-toggle');
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      // Diagnostik API support
+      const hasServiceWorker = 'serviceWorker' in navigator;
+      const hasPushManager = 'PushManager' in window;
+      const hasNotification = 'Notification' in window;
+      const isSecureContext = window.isSecureContext;
+    
+      // Check for HTTPS/secure context
+      if (!isSecureContext) {
       btn.disabled = true;
-      btn.textContent = 'Notifikasi tidak didukung';
+        btn.title = 'Push notification memerlukan HTTPS. Gunakan HTTPS untuk mengaktifkan fitur ini.';
+        btn.textContent = 'Notifikasi memerlukan HTTPS';
+        console.warn('Push notifications require HTTPS. Current context:', {
+          isSecureContext,
+          protocol: window.location.protocol
+        });
       return;
     }
+    
+      // Check API support
+      if (!hasServiceWorker || !hasPushManager || !hasNotification) {
+        btn.disabled = true;
+        btn.title = 'Browser Anda tidak mendukung push notification. Gunakan Chrome, Firefox, Edge, atau Opera versi terbaru.';
+        btn.textContent = 'Notifikasi tidak didukung browser';
+        console.warn('Push notification APIs not supported:', {
+          hasServiceWorker,
+          hasPushManager,
+          hasNotification,
+          userAgent: navigator.userAgent
+        });
+        return;
+      }
+    
     try {
       const sub = await getSubscription();
       btn.disabled = false;
+        btn.title = sub ? 'Klik untuk mematikan notifikasi' : 'Klik untuk mengaktifkan notifikasi';
       btn.textContent = sub ? 'Matikan Notifikasi' : 'Aktifkan Notifikasi';
     } catch (error) {
       console.error('Error updating push button:', error);
-      btn.disabled = false;
-      btn.textContent = 'Aktifkan Notifikasi';
+        btn.disabled = true;
+        btn.title = `Terjadi kesalahan: ${error.message}`;
+        btn.textContent = 'Notifikasi (Error)';
     }
   }
   
