@@ -51,41 +51,161 @@ export async function HomeView({ mainRoot }) {
     for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
     return outputArray;
   }
+  
   async function getSubscription() {
-    if (!('serviceWorker' in navigator)) return null;
-    const reg = await navigator.serviceWorker.ready;
-    return reg.pushManager.getSubscription();
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return null;
+    }
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      return await reg.pushManager.getSubscription();
+    } catch (error) {
+      console.error('Error getting subscription:', error);
+      return null;
+    }
   }
+  
   async function updatePushButton() {
     const btn = toolbar.querySelector('#push-toggle');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      btn.disabled = true;
+      btn.textContent = 'Notifikasi tidak didukung';
+      return;
+    }
     try {
       const sub = await getSubscription();
+      btn.disabled = false;
       btn.textContent = sub ? 'Matikan Notifikasi' : 'Aktifkan Notifikasi';
-    } catch {}
+    } catch (error) {
+      console.error('Error updating push button:', error);
+      btn.disabled = false;
+      btn.textContent = 'Aktifkan Notifikasi';
+    }
   }
+  
+  async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+      throw new Error('Browser tidak mendukung notifikasi');
+    }
+    
+    if (Notification.permission === 'granted') {
+      return true;
+    }
+    
+    if (Notification.permission === 'denied') {
+      throw new Error('Izin notifikasi ditolak. Silakan aktifkan di pengaturan browser.');
+    }
+    
+    // Request permission
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      throw new Error('Izin notifikasi diperlukan untuk mengaktifkan fitur ini.');
+    }
+    
+    return true;
+  }
+  
   async function subscribePush() {
+    // Check if service worker and push are supported
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      throw new Error('Browser tidak mendukung push notification');
+    }
+    
+    // Request notification permission first
+    await requestNotificationPermission();
+    
+    // Wait for service worker to be ready
     const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC) });
-    const json = sub.toJSON();
-    await StoryApi.subscribePush({ endpoint: json.endpoint, keys: json.keys });
-    showToast('Notifikasi diaktifkan', 'success');
+    
+    // Check if already subscribed
+    let sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      showToast('Notifikasi sudah aktif', 'success');
+      return;
+    }
+    
+    // Subscribe to push
+    try {
+      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC);
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey
+      });
+      
+      const json = sub.toJSON();
+      if (!json.endpoint || !json.keys) {
+        throw new Error('Subscription data tidak valid');
+      }
+      
+      // Send subscription to server
+      await StoryApi.subscribePush({ endpoint: json.endpoint, keys: json.keys });
+      showToast('Notifikasi diaktifkan', 'success');
+    } catch (error) {
+      console.error('Subscribe error:', error);
+      if (error.name === 'NotAllowedError') {
+        throw new Error('Izin notifikasi ditolak');
+      } else if (error.name === 'NotSupportedError') {
+        throw new Error('Push notification tidak didukung');
+      } else {
+        throw new Error(error.message || 'Gagal mengaktifkan notifikasi');
+      }
+    }
   }
+  
   async function unsubscribePush() {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (!sub) return;
-    const endpoint = sub.endpoint;
-    await sub.unsubscribe();
-    await StoryApi.unsubscribePush({ endpoint });
-    showToast('Notifikasi dimatikan');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      return;
+    }
+    
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        showToast('Tidak ada subscription aktif');
+        return;
+      }
+      
+      const endpoint = sub.endpoint;
+      const unsubscribed = await sub.unsubscribe();
+      
+      if (unsubscribed) {
+        try {
+          await StoryApi.unsubscribePush({ endpoint });
+        } catch (apiError) {
+          console.error('Error unsubscribing from server:', apiError);
+          // Continue even if server unsubscribe fails
+        }
+        showToast('Notifikasi dimatikan', 'success');
+      } else {
+        throw new Error('Gagal unsubscribe');
+      }
+    } catch (error) {
+      console.error('Unsubscribe error:', error);
+      throw new Error('Gagal mematikan notifikasi');
+    }
   }
+  
   toolbar.querySelector('#push-toggle').addEventListener('click', async () => {
+    const btn = toolbar.querySelector('#push-toggle');
+    btn.disabled = true;
     try {
       const sub = await getSubscription();
-      if (sub) await unsubscribePush(); else await subscribePush();
-      updatePushButton();
-    } catch (e) { showToast('Gagal mengubah status notifikasi', 'error'); }
+      if (sub) {
+        await unsubscribePush();
+      } else {
+        await subscribePush();
+      }
+      await updatePushButton();
+    } catch (error) {
+      console.error('Push toggle error:', error);
+      showToast(error.message || 'Gagal mengubah status notifikasi', 'error');
+      await updatePushButton();
+    } finally {
+      btn.disabled = false;
+    }
   });
+  
+  // Initialize button state
   updatePushButton();
 
   // Fetch and render stories with locations

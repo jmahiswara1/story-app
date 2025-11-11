@@ -5,7 +5,15 @@ import { Storage } from './modules/utils/storage.js';
 
 // Register service worker for push notifications (non-blocking)
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  // Use absolute path for GitHub Pages compatibility
+  const swPath = '/sw.js';
+  navigator.serviceWorker.register(swPath)
+    .then((registration) => {
+      console.log('Service Worker registered:', registration);
+    })
+    .catch((error) => {
+      console.error('Service Worker registration failed:', error);
+    });
   
   // Listen for messages from service worker (for notification navigation)
   navigator.serviceWorker.addEventListener('message', (event) => {

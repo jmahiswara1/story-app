@@ -102,46 +102,72 @@ self.addEventListener('fetch', (event) => {
 
 // Push notification event
 self.addEventListener('push', (event) => {
-  let payload = {};
-  try {
-    if (event.data) {
-      payload = event.data.json ? event.data.json() : JSON.parse(event.data.text() || '{}');
+  const showNotification = async () => {
+    let payload = {};
+    
+    // Parse payload
+    try {
+      if (event.data) {
+        if (typeof event.data.json === 'function') {
+          payload = event.data.json();
+        } else if (typeof event.data.text === 'function') {
+          const text = event.data.text();
+          payload = JSON.parse(text || '{}');
+        } else {
+          // Try to get as array buffer and convert
+          try {
+            const buffer = await event.data.arrayBuffer();
+            const text = new TextDecoder().decode(buffer);
+            payload = JSON.parse(text || '{}');
+          } catch {
+            payload = {};
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Push payload parse error:', e);
+      payload = {};
     }
-  } catch (e) {
-    console.error('Push payload parse error:', e);
-  }
 
-  // Try to extract storyId from body or data
-  let storyId = payload?.data?.storyId;
-  if (!storyId && payload?.options?.body) {
-    // Try to extract from body text if contains story ID pattern
-    const bodyMatch = payload.options.body.match(/story[_-]?id[:\s]+([a-zA-Z0-9_-]+)/i);
-    if (bodyMatch) storyId = bodyMatch[1];
-  }
+    // Try to extract storyId from body or data
+    let storyId = payload?.data?.storyId || payload?.storyId;
+    if (!storyId && payload?.options?.body) {
+      // Try to extract from body text if contains story ID pattern
+      const bodyMatch = payload.options.body.match(/story[_-]?id[:\s]+([a-zA-Z0-9_-]+)/i);
+      if (bodyMatch) storyId = bodyMatch[1];
+    }
 
-  const title = payload?.title || 'Notifikasi Story';
-  const options = {
-    body: payload?.options?.body || 'Ada pembaruan cerita baru.',
-    icon: '/favicon.png',
-    badge: '/favicon.png',
-    tag: 'story-notification',
-    data: {
-      ...payload?.data,
-      storyId: storyId || payload?.data?.storyId,
-      url: storyId ? `/#/detail/${storyId}` : '/#/',
-    },
-    requireInteraction: false,
-    actions: storyId
-      ? [
-          {
-            action: 'view',
-            title: 'Lihat Detail',
-          },
-        ]
-      : [],
+    const title = payload?.title || 'Notifikasi Story';
+    const body = payload?.options?.body || payload?.body || 'Ada pembaruan cerita baru.';
+    const options = {
+      body: body,
+      icon: '/favicon.png',
+      badge: '/favicon.png',
+      tag: 'story-notification',
+      data: {
+        ...payload?.data,
+        storyId: storyId || payload?.data?.storyId,
+        url: storyId ? `/#/detail/${storyId}` : '/#/',
+      },
+      requireInteraction: false,
+      actions: storyId
+        ? [
+            {
+              action: 'view',
+              title: 'Lihat Detail',
+            },
+          ]
+        : [],
+    };
+
+    try {
+      await self.registration.showNotification(title, options);
+    } catch (error) {
+      console.error('Error showing notification:', error);
+    }
   };
-
-  event.waitUntil(self.registration.showNotification(title, options));
+  
+  event.waitUntil(showNotification());
 });
 
 // Notification click event
@@ -173,6 +199,9 @@ self.addEventListener('notificationclick', (event) => {
             const fullUrl = new URL(urlToOpen, self.location.origin).href;
             return self.clients.openWindow(fullUrl);
           }
+        })
+        .catch((error) => {
+          console.error('Error handling notification click:', error);
         })
     );
   }
