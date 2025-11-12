@@ -12,8 +12,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Story App" />
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./favicon.png" />
 
     <!-- Leaflet CSS -->
     <link
@@ -26,12 +26,29 @@
     
   </head>
   <body>
-    <a href="#main" class="skip-link">Lewati ke konten</a>
+    <a href="#main" class="skip-link" id="skip-link">Lewati ke konten</a>
     <div id="app" data-app-root>
       <header id="header" aria-label="Navigasi utama"></header>
       <main id="main" tabindex="-1"></main>
       <div id="toast-root" aria-live="polite" aria-atomic="true"></div>
     </div>
+    <script>
+      // Fix skip to content - prevent hash navigation and focus main element
+      document.addEventListener('DOMContentLoaded', () => {
+        const skipLink = document.getElementById('skip-link');
+        const mainElement = document.getElementById('main');
+        
+        if (skipLink && mainElement) {
+          skipLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Focus the main element
+            mainElement.focus();
+            // Scroll to main element
+            mainElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          });
+        }
+      });
+    </script>
 
     <!-- Leaflet JS -->
     <script

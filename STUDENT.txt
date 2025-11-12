@@ -3,5 +3,5 @@ Map Service API Key: Tidak diperlukan. Aplikasi menggunakan Leaflet dengan tile 
 VAPID Public Key untuk Web Push (dari spesifikasi tugas):
 BCCs2eonMI-6H2ctvFaWg-UYdDv387Vno_bzUzALpB442r2lCnsHmtrx8biyPi_E-1fSGABK_Qs_GlvPoJJqxbk
 
-APP_URL=<url_aplikasi>
-MAP_SERVICE_API_KEY=<api_key>
+APP_URL=https://jmahiswara1.github.io/story-app/
+MAP_SERVICE_API_KEY=Tidak diperlukan
