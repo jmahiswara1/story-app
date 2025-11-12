@@ -27,14 +27,38 @@ export async function DetailView({ params, mainRoot }) {
       </article>
     `;
     const hasLoc = typeof story.lat === 'number' && typeof story.lon === 'number';
-    const map = L.map('map');
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
-    if (hasLoc) {
-      map.setView([story.lat, story.lon], 10);
-      L.marker([story.lat, story.lon]).addTo(map).bindPopup(`${story.name}`).openPopup();
-    } else {
-      map.setView([0, 0], 2);
+    let map = null;
+    
+    try {
+      const mapContainer = card.querySelector('#map');
+      if (mapContainer) {
+        map = L.map('map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+        if (hasLoc) {
+          map.setView([story.lat, story.lon], 10);
+          L.marker([story.lat, story.lon]).addTo(map).bindPopup(`${story.name}`).openPopup();
+        } else {
+          map.setView([0, 0], 2);
+        }
+      }
+    } catch (mapError) {
+      console.error('Error initializing map:', mapError);
     }
+    
+    // Cleanup function for map
+    const cleanup = () => {
+      try {
+        if (map) {
+          map.remove();
+          map = null;
+        }
+      } catch (error) {
+        console.warn('DetailView map cleanup warning:', error.message);
+      }
+    };
+    
+    // Store cleanup function for router
+    mainRoot._detailViewCleanup = cleanup;
   } catch (err) {
     showToast(err.message || 'Gagal memuat detail', 'error');
     card.innerHTML = `<p class="error">${err.message || 'Gagal memuat'}</p>`;

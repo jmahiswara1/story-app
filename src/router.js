@@ -19,7 +19,15 @@ const routes = [
 ];
 
 function parseLocation() {
-  const hash = window.location.hash || '#/';
+  let hash = window.location.hash || '#/';
+  // Ignore #main hash (used for skip to content accessibility)
+  if (hash === '#main') {
+    hash = '#/';
+    // Update URL without triggering navigation
+    if (window.history.replaceState) {
+      window.history.replaceState(null, '', '#/');
+    }
+  }
   return hash;
 }
 
@@ -64,9 +72,29 @@ export function initRouter({ onRoute, mainRoot }) {
         try {
           mainRoot._addStoryCleanup();
         } catch (e) {
-          console.error('Cleanup error:', e);
+          console.warn('AddStory cleanup warning:', e.message);
         }
         mainRoot._addStoryCleanup = null;
+      }
+      
+      // Cleanup HomeView map if exists
+      if (mainRoot._homeViewCleanup) {
+        try {
+          mainRoot._homeViewCleanup();
+        } catch (e) {
+          console.warn('HomeView cleanup warning:', e.message);
+        }
+        mainRoot._homeViewCleanup = null;
+      }
+      
+      // Cleanup DetailView map if exists
+      if (mainRoot._detailViewCleanup) {
+        try {
+          mainRoot._detailViewCleanup();
+        } catch (e) {
+          console.warn('DetailView cleanup warning:', e.message);
+        }
+        mainRoot._detailViewCleanup = null;
       }
 
       const { route, params } = matchRoute(hash);
