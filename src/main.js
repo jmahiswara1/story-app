@@ -2,14 +2,10 @@ import { initRouter, navigateTo } from "./router.js";
 import "./app.css";
 import { createHeader } from "./modules/components/Header.js";
 import { Storage } from "./modules/utils/storage.js";
-
-// Register service worker for push notifications (non-blocking)
 if ("serviceWorker" in navigator) {
-  // Get base path for GitHub Pages / subdirectory support
   const getBasePath = () => {
     try {
       const pathname = window.location.pathname || "/";
-      // If path ends with filename, strip it
       if (/\/[A-Za-z0-9_\-]+\.[A-Za-z0-9]+$/.test(pathname)) {
         return pathname.substring(0, pathname.lastIndexOf("/") + 1) || "/";
       }
@@ -22,7 +18,6 @@ if ("serviceWorker" in navigator) {
   const basePath = getBasePath();
   const swPath = basePath === "/" ? "/sw.js" : basePath + "sw.js";
 
-  // Register service worker
   navigator.serviceWorker
     .register(swPath)
     .then((registration) => {
@@ -32,7 +27,6 @@ if ("serviceWorker" in navigator) {
       console.error("Service Worker registration failed:", error);
     });
 
-  // Listen for messages from service worker (for notification navigation)
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data && event.data.type === "NAVIGATE" && event.data.url) {
       const hash = event.data.url.split("#")[1] || "/";
@@ -49,7 +43,6 @@ let lastAuthState = null;
 function mountHeader() {
   const currentAuthState = !!Storage.getToken();
 
-  // Only remount header if auth state actually changed
   if (lastAuthState === currentAuthState && headerRoot.children.length > 0) {
     return;
   }
@@ -70,6 +63,5 @@ function mountHeader() {
   );
 }
 
-// Initialize App
 mountHeader();
 initRouter({ onRoute: mountHeader, mainRoot });

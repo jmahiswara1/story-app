@@ -7,7 +7,5 @@ export default class HomePage {
     `;
   }
 
-  async afterRender() {
-    // Do your job here
-  }
+  async afterRender() {}
 }
