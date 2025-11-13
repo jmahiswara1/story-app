@@ -224,6 +224,12 @@ export async function HomeView({ mainRoot }) {
     });
     stories = data?.listStory || [];
   } catch (err) {
+    console.error("Error loading stories:", err);
+    console.error("Error details:", {
+      message: err.message,
+      status: err.status,
+      response: err.response,
+    });
     showToast(err.message || "Gagal memuat cerita", "error");
   }
 
