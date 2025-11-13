@@ -1,6 +1,6 @@
-const CACHE_NAME = 'story-app-v1';
-const RUNTIME_CACHE = 'story-app-runtime-v1';
-const API_CACHE = 'story-app-api-v1';
+const CACHE_NAME = "story-app-v1";
+const RUNTIME_CACHE = "story-app-runtime-v1";
+const API_CACHE = "story-app-api-v1";
 
 // Get base path from service worker scope for GitHub Pages compatibility
 function getBasePath() {
@@ -8,19 +8,19 @@ function getBasePath() {
     // Try to get from registration scope first (available after activation)
     if (self.registration && self.registration.scope) {
       const url = new URL(self.registration.scope);
-      return url.pathname.endsWith('/') ? url.pathname : url.pathname + '/';
+      return url.pathname.endsWith("/") ? url.pathname : url.pathname + "/";
     }
     // Fallback to location (available during install)
     if (self.location && self.location.pathname) {
       const path = self.location.pathname;
       // Remove sw.js from path to get base directory
-      const basePath = path.substring(0, path.lastIndexOf('/') + 1);
-      return basePath || '/';
+      const basePath = path.substring(0, path.lastIndexOf("/") + 1);
+      return basePath || "/";
     }
   } catch (e) {
-    console.error('Error getting base path:', e);
+    console.error("Error getting base path:", e);
   }
-  return '/';
+  return "/";
 }
 
 // Assets to cache on install (app shell) - use relative paths
@@ -37,49 +37,57 @@ const getStaticAssets = () => {
     `${basePath}icon-96x96.png`,
     `${basePath}images/logo.png`,
     `${basePath}manifest.json`,
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
-    'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+    "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+    "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
   ];
   // Clean up double slashes
-  return assets.map(url => url.replace(/([^:]\/)\/+/g, '$1'));
+  return assets.map((url) => url.replace(/([^:]\/)\/+/g, "$1"));
 };
 
 // Install event - cache app shell
-self.addEventListener('install', (event) => {
-  console.log('Service Worker installing...');
-  console.log('Service Worker location:', self.location?.href);
+self.addEventListener("install", (event) => {
+  console.log("Service Worker installing...");
+  console.log("Service Worker location:", self.location?.href);
   const staticAssets = getStaticAssets();
-  console.log('Base path:', getBasePath());
-  console.log('Assets to cache:', staticAssets);
-  
+  console.log("Base path:", getBasePath());
+  console.log("Assets to cache:", staticAssets);
+
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      // Cache assets, but don't fail if some are missing
-      return Promise.allSettled(
-        staticAssets.map(url => 
-          cache.add(url).catch(err => {
-            console.warn(`Failed to cache ${url}:`, err.message);
-            return null;
-          })
-        )
-      ).then(() => {
-        console.log('Service Worker cache installation completed');
-      });
-    }).catch((err) => {
-      console.error('Cache installation failed:', err);
-      // Still allow service worker to activate
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        // Cache assets, but don't fail if some are missing
+        return Promise.allSettled(
+          staticAssets.map((url) =>
+            cache.add(url).catch((err) => {
+              console.warn(`Failed to cache ${url}:`, err.message);
+              return null;
+            })
+          )
+        ).then(() => {
+          console.log("Service Worker cache installation completed");
+        });
+      })
+      .catch((err) => {
+        console.error("Cache installation failed:", err);
+        // Still allow service worker to activate
+      })
   );
   self.skipWaiting();
 });
 
 // Activate event - clean old caches
-self.addEventListener('activate', (event) => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME && name !== RUNTIME_CACHE && name !== API_CACHE)
+          .filter(
+            (name) =>
+              name !== CACHE_NAME &&
+              name !== RUNTIME_CACHE &&
+              name !== API_CACHE
+          )
           .map((name) => caches.delete(name))
       );
     })
@@ -88,18 +96,21 @@ self.addEventListener('activate', (event) => {
 });
 
 // Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
+self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
   // Skip non-GET requests
-  if (request.method !== 'GET') return;
+  if (request.method !== "GET") return;
 
   // Skip chrome-extension and other protocols
-  if (!url.protocol.startsWith('http')) return;
+  if (!url.protocol.startsWith("http")) return;
 
   // API requests - Network First with cache fallback
-  if (url.hostname === 'story-api.dicoding.dev' || url.pathname.includes('/v1/')) {
+  if (
+    url.hostname === "story-api.dicoding.dev" ||
+    url.pathname.includes("/v1/")
+  ) {
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -118,9 +129,12 @@ self.addEventListener('fetch', (event) => {
             if (cachedResponse) return cachedResponse;
             // Return offline fallback for API
             return new Response(
-              JSON.stringify({ error: true, message: 'Offline - data dari cache' }),
+              JSON.stringify({
+                error: true,
+                message: "Offline - data dari cache",
+              }),
               {
-                headers: { 'Content-Type': 'application/json' },
+                headers: { "Content-Type": "application/json" },
                 status: 200,
               }
             );
@@ -148,31 +162,31 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Push notification event
-self.addEventListener('push', (event) => {
+self.addEventListener("push", (event) => {
   const showNotification = async () => {
     let payload = {};
-    
+
     // Parse payload
     try {
       if (event.data) {
-        if (typeof event.data.json === 'function') {
+        if (typeof event.data.json === "function") {
           payload = event.data.json();
-        } else if (typeof event.data.text === 'function') {
+        } else if (typeof event.data.text === "function") {
           const text = event.data.text();
-          payload = JSON.parse(text || '{}');
+          payload = JSON.parse(text || "{}");
         } else {
           // Try to get as array buffer and convert
           try {
             const buffer = await event.data.arrayBuffer();
             const text = new TextDecoder().decode(buffer);
-            payload = JSON.parse(text || '{}');
+            payload = JSON.parse(text || "{}");
           } catch {
             payload = {};
           }
         }
       }
     } catch (e) {
-      console.error('Push payload parse error:', e);
+      console.error("Push payload parse error:", e);
       payload = {};
     }
 
@@ -180,54 +194,34 @@ self.addEventListener('push', (event) => {
     let storyId = payload?.data?.storyId || payload?.storyId;
     if (!storyId && payload?.options?.body) {
       // Try to extract from body text if contains story ID pattern
-      const bodyMatch = payload.options.body.match(/story[_-]?id[:\s]+([a-zA-Z0-9_-]+)/i);
+      const bodyMatch = payload.options.body.match(
+        /story[_-]?id[:\s]+([a-zA-Z0-9_-]+)/i
+      );
       if (bodyMatch) storyId = bodyMatch[1];
     }
 
-    const title = payload?.title || 'Notifikasi Story';
-    const body = payload?.options?.body || payload?.body || 'Ada pembaruan cerita baru.';
-<<<<<<< HEAD
-    const options = {
-      body: body,
-      icon: '/favicon.png',
-      badge: '/favicon.png',
-=======
-    
-    // Get base path from service worker scope for GitHub Pages compatibility
-    const getBasePath = () => {
-      // Service worker scope ends with /, so we can use it directly
-      const scope = self.registration.scope;
-      // Remove protocol and domain, keep only path
-      try {
-        const url = new URL(scope);
-        return url.pathname;
-      } catch {
-        return '/';
-      }
-    };
+    const title = payload?.title || "Notifikasi Story";
+    const body =
+      payload?.options?.body || payload?.body || "Ada pembaruan cerita baru.";
+
     const basePath = getBasePath();
-    
+
     const options = {
       body: body,
-      icon: `${basePath}favicon.png`.replace('//', '/'),
-      badge: `${basePath}favicon.png`.replace('//', '/'),
->>>>>>> d0079238ede1db12466ebe9a902d2405ede86d99
-      tag: 'story-notification',
+      icon: `${basePath}favicon.png`.replace("//", "/"),
+      badge: `${basePath}favicon.png`.replace("//", "/"),
+      tag: "story-notification",
       data: {
         ...payload?.data,
         storyId: storyId || payload?.data?.storyId,
-<<<<<<< HEAD
-        url: storyId ? `/#/detail/${storyId}` : '/#/',
-=======
         url: storyId ? `${basePath}#/detail/${storyId}` : `${basePath}#/`,
->>>>>>> d0079238ede1db12466ebe9a902d2405ede86d99
       },
       requireInteraction: false,
       actions: storyId
         ? [
             {
-              action: 'view',
-              title: 'Lihat Detail',
+              action: "view",
+              title: "Lihat Detail",
             },
           ]
         : [],
@@ -236,19 +230,19 @@ self.addEventListener('push', (event) => {
     try {
       await self.registration.showNotification(title, options);
     } catch (error) {
-      console.error('Error showing notification:', error);
+      console.error("Error showing notification:", error);
     }
   };
-  
+
   event.waitUntil(showNotification());
 });
 
 // Notification click event
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   // Handle action button click
-  if (event.action === 'view' || !event.action) {
+  if (event.action === "view" || !event.action) {
     const storyId = event.notification.data?.storyId;
     // Get base path from service worker scope
     const getBasePath = () => {
@@ -256,24 +250,28 @@ self.addEventListener('notificationclick', (event) => {
         const url = new URL(self.registration.scope);
         return url.pathname;
       } catch {
-        return '/';
+        return "/";
       }
     };
     const basePath = getBasePath();
-    const urlToOpen = event.notification.data?.url || (storyId ? `${basePath}#/detail/${storyId}` : `${basePath}#/`);
+    const urlToOpen =
+      event.notification.data?.url ||
+      (storyId ? `${basePath}#/detail/${storyId}` : `${basePath}#/`);
 
     event.waitUntil(
       self.clients
-        .matchAll({ type: 'window', includeUncontrolled: true })
+        .matchAll({ type: "window", includeUncontrolled: true })
         .then((clientList) => {
           // If window is already open, focus it and post message to navigate
           for (const client of clientList) {
-            if (client.url && 'focus' in client) {
+            if (client.url && "focus" in client) {
               client.focus();
               // Post message to navigate - use hash path only
               if (client.postMessage) {
-                const hashPath = urlToOpen.includes('#') ? urlToOpen.split('#')[1] : '/';
-                client.postMessage({ type: 'NAVIGATE', url: `#${hashPath}` });
+                const hashPath = urlToOpen.includes("#")
+                  ? urlToOpen.split("#")[1]
+                  : "/";
+                client.postMessage({ type: "NAVIGATE", url: `#${hashPath}` });
               }
               return;
             }
@@ -285,15 +283,15 @@ self.addEventListener('notificationclick', (event) => {
           }
         })
         .catch((error) => {
-          console.error('Error handling notification click:', error);
+          console.error("Error handling notification click:", error);
         })
     );
   }
 });
 
 // Background sync (for offline data sync)
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-stories') {
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-stories") {
     event.waitUntil(syncStories());
   }
 });
@@ -302,13 +300,13 @@ async function syncStories() {
   // This will be called from IndexedDB sync module
   const clients = await self.clients.matchAll();
   clients.forEach((client) => {
-    client.postMessage({ type: 'SYNC_STORIES' });
+    client.postMessage({ type: "SYNC_STORIES" });
   });
 }
 
 // Message handler for IndexedDB sync
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
 });
